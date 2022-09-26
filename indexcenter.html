@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="./Js/vue.js"></script>
+    <link rel="stylesheet" href="./ElementUi/index.css" />
+    <link rel="icon" href="favicon.ico" />
+    <script src="./ElementUi/index.js"></script>
+    <script src="./Js/axios.min.js"></script>
+    <style type="text/css">
+      .el-tree{
+        color: #3869cc;
+      }
+      .el-tree-node__content{
+        height: 60px;
+      }
+      .el-tree-node__content:hover{
+       background-color: rgb(236,245,255) !important
+      }
+      .el-tree-node:focus>.el-tree-node__content{
+       background-color: rgb(236,245,225) !important
+      }
+      .el-tree-node__expand-icon{
+        font-size: 18px;
+        color: #3869cc;
+      }
+    </style>
+    <title>主入口</title>
+</head>
+<body style="height:100%;">
+<div id="hard"></div>
+<div id="left" style="width: 200px; float: left; overflow: auto;min-height: 600px;border-right: solid 1px #e6e6e6;"  element-loading-text="拼命加载中"  v-loading.fullscreen.lock="fullscreenLoading" >
+<!-- <button type="button"  v-on:click="gettree" class="el-button el-button--primary">测试按钮1</button> -->
+  <el-tree :data="data" :props="defaultProps" icon-class="el-icon-menu" node-key="pid" @node-click="handleNodeClick"></el-tree> 
+</div>
+</div>
+</body>
+<script>
+function  arrToTree(arr, id) {
+           let children = [] // 用于存放子节点
+            arr.forEach(v => {
+          // 找出对应的id的节点
+          if (v.job === id) {
+            let obj = { label: v.name ,pid:v.pid}
+            // 继续递归遍历找出子节点
+            let node = arrToTree(arr, v.pid)
+            // 判断是否有子节点
+            if(node.length) obj.children = node
+            // 将子节点添加到数组
+            children.push(obj)
+          }
+        })
+        // 返回找到的结果
+        return children
+        }
+    var app=new Vue({
+        el:'#left',
+        data:{
+          fullscreenLoading:true,
+          data:[{
+                "id":"1",
+                "label": "一级 1",
+               }],
+          defaultProps: {
+          label: 'label',
+          children: 'children'
+          },
+        },
+        created(){
+          axios.get('./json/pid.json').then(response => {
+             let tree = []
+             // 找出所有根节点
+             this.data=response.data.arr;
+          if(this.data!==undefined){
+            this.data.forEach((v, i) => {
+            if (v.job=="") {
+              tree.push({ label: v.name,pid:v.pid, children: arrToTree(this.data, v.pid) })
+            }
+            })
+            this.data = tree // 将转换结果显示到页面
+            console.log(JSON.parse(JSON.stringify( tree )));
+          }
+        })
+        },
+        methods:{
+          handleNodeClick(data) {
+            console.log(data.label,data.pid);
+          },
+          gettree(){
+            //const url="./json/tree.json";
+            axios.get('./json/pid.json').then(response => {
+             let tree = []
+             // 找出所有根节点
+             console.log(response.data.arr);
+             this.data=response.data.arr;
+          if(this.data!==undefined){
+            this.data.forEach((v, i) => {
+            if (v.job=="") {
+              tree.push({ label: v.name, children: arrToTree(this.data, v.pid) })
+            }
+            })
+            this.data = tree // 将转换结果显示到页面
+            console.log(JSON.parse(JSON.stringify( tree )));
+          }
+              //this.data=JSON.parse(response.data);
+              /**
+               * 这里需要将拿到的对象转为数组，进行赋值，这样才不会宝类型错误
+              //  */
+              //   let common_table_info = [];
+              //    for(let i in response.arr){
+              //      common_table_info.push(response.data[i]);
+              //    }
+              //    this.data2 = common_table_info;
+              //    console.log(this.data2);
+             })
+          }
+        },
+        mounted:function(){
+         // this.gettree();    
+            setTimeout(() => {
+              this.fullscreenLoading=false;//关闭加载动画
+             }, 850);       
+        }
+    })
+</script>
+</html>
