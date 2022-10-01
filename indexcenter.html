@@ -10,6 +10,10 @@
     <script src="./ElementUi/index.js"></script>
     <script src="./Js/axios.min.js"></script>
     <style type="text/css">
+      body{
+        margin: 0;
+        padding: 0;
+      }
       .el-tree{
         color: #3869cc;
       }
@@ -26,24 +30,52 @@
         font-size: 18px;
         color: #3869cc;
       }
+      .el-tabs,.el-tabs__content{
+        height: 100%;
+      }
+      .el-tabs__content{
+        height: calc(100% - 41px);
+      }
+      .el-tabs__header{
+        margin-bottom: 0;
+      }
     </style>
     <title>主入口</title>
 </head>
-<body style="height:100%;">
+<body style="height: 100%;width: 100%;position: absolute;">
 <div id="hard"></div>
-<div id="left" style="width: 200px; float: left; overflow: auto;min-height: 600px;border-right: solid 1px #e6e6e6;"  element-loading-text="拼命加载中"  v-loading.fullscreen.lock="fullscreenLoading" >
+<div id="left" style="width: 15%; height: 100%;overflow: auto;border-right: solid 1px #e6e6e6;float: left;"  element-loading-text="拼命加载中"  v-loading.fullscreen.lock="fullscreenLoading" >
 <!-- <button type="button"  v-on:click="gettree" class="el-button el-button--primary">测试按钮1</button> -->
-  <el-tree :data="data" :props="defaultProps" icon-class="el-icon-menu" node-key="pid" @node-click="handleNodeClick"></el-tree> 
+<el-input
+  placeholder="输入关键字过滤"
+  v-model="filterText"
+  clearable>
+</el-input>
+  <el-tree :data="data" :props="defaultProps" icon-class="el-icon-menu" accordion  node-key="pid" :filter-node-method="filterNode" @node-click="handleNodeClick" ref="tree"></el-tree> 
 </div>
+</el-col>
+<div id="right"  style="width: calc(85% - 13px);margin-left: 10px;height: 100%;float: left;">
+  <el-tabs v-model="editableTabsValue" type="border-card" closable @tab-remove="removeTab">
+    <el-tab-pane
+      v-for="(item, index) in editableTabs"
+      :key="item.name"
+      :label="item.title"
+      :name="item.name">
+      {{item.content}}
+    </el-tab-pane>
+  </el-tabs>
 </div>
 </body>
 <script>
+// window.onload = () => {
+//  document.getElementsByTagName("body")[0].style.height = window.screen.width+"px";
+// }
 function  arrToTree(arr, id) {
            let children = [] // 用于存放子节点
             arr.forEach(v => {
           // 找出对应的id的节点
           if (v.job === id) {
-            let obj = { label: v.name ,pid:v.pid}
+            let obj = { label: v.name ,pid:v.pid,src:v.src}
             // 继续递归遍历找出子节点
             let node = arrToTree(arr, v.pid)
             // 判断是否有子节点
@@ -59,6 +91,7 @@ function  arrToTree(arr, id) {
         el:'#left',
         data:{
           fullscreenLoading:true,
+          filterText:'',
           data:[{
                 "id":"1",
                 "label": "一级 1",
@@ -76,7 +109,7 @@ function  arrToTree(arr, id) {
           if(this.data!==undefined){
             this.data.forEach((v, i) => {
             if (v.job=="") {
-              tree.push({ label: v.name,pid:v.pid, children: arrToTree(this.data, v.pid) })
+              tree.push({ label: v.name,pid:v.pid,src:v.src, children: arrToTree(this.data, v.pid) })
             }
             })
             this.data = tree // 将转换结果显示到页面
@@ -84,10 +117,19 @@ function  arrToTree(arr, id) {
           }
         })
         },
+       watch: {
+          filterText(val) {
+          this.$refs.tree.filter(val);
+         }
+        },
         methods:{
           handleNodeClick(data) {
-            console.log(data.label,data.pid);
+            console.log(data.label,data.src);
           },
+          filterNode(value, data) {
+              if (!value) return true;
+              return data.label.indexOf(value) !== -1;
+           },
           gettree(){
             //const url="./json/tree.json";
             axios.get('./json/pid.json').then(response => {
@@ -95,15 +137,15 @@ function  arrToTree(arr, id) {
              // 找出所有根节点
              console.log(response.data.arr);
              this.data=response.data.arr;
-          if(this.data!==undefined){
-            this.data.forEach((v, i) => {
-            if (v.job=="") {
-              tree.push({ label: v.name, children: arrToTree(this.data, v.pid) })
-            }
-            })
-            this.data = tree // 将转换结果显示到页面
-            console.log(JSON.parse(JSON.stringify( tree )));
-          }
+             if(this.data!==undefined){
+              this.data.forEach((v, i) => {
+              if (v.job=="") {
+                tree.push({ label: v.name, children: arrToTree(this.data, v.pid) })
+              }
+             })
+               this.data = tree // 将转换结果显示到页面
+               console.log(JSON.parse(JSON.stringify( tree )));
+             }
               //this.data=JSON.parse(response.data);
               /**
                * 这里需要将拿到的对象转为数组，进行赋值，这样才不会宝类型错误
@@ -124,5 +166,49 @@ function  arrToTree(arr, id) {
              }, 850);       
         }
     })
+    var app2=new Vue({
+      el:'#right',
+      data:{
+        editableTabsValue: '2',
+        editableTabs: [{
+          title: 'Tab 1',
+          name: '1',
+          content: 'Tab 1 content'
+        }, {
+          title: 'Tab 2',
+          name: '2',
+          content: 'Tab 2 content'
+        }],
+        tabIndex: 2
+      },
+      methods:{
+        addTab(targetName) {
+          let newTabName = ++this.tabIndex + '';
+          this.editableTabs.push({
+            title: 'New Tab',
+            name: newTabName,
+            content: 'New Tab content'
+          });
+          this.editableTabsValue = newTabName;
+        },
+        removeTab(targetName) {
+          let tabs = this.editableTabs;
+          let activeName = this.editableTabsValue;
+          if (activeName === targetName) {
+            tabs.forEach((tab, index) => {
+            if (tab.name === targetName) {
+                let nextTab = tabs[index + 1] || tabs[index - 1];
+                if (nextTab) {
+                   activeName = nextTab.name;
+                }
+             }
+           });
+          }
+          this.editableTabsValue = activeName;
+          this.editableTabs = tabs.filter(tab => tab.name !== targetName);
+        }
+      }
+    })
+
 </script>
 </html>
