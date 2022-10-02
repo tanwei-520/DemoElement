@@ -31,11 +31,14 @@
         font-size: 18px;
         color: #3869cc;
       }
-      .el-tabs,.el-tabs__content{
+      .el-tabs,.el-tabs__content,.el-tab-pane{
         height: 100%;
       }
       .el-tabs__content{
         height: calc(100% - 65px);
+      }
+      .el-tabs--border-card>.el-tabs__content{
+        padding: 0;
       }
       .el-tabs__header{
         margin-bottom: 0;
@@ -43,8 +46,43 @@
       .el-tabs__nav .el-tabs__item:nth-child(1) span{
         display: none;
       }
+      #left{
+        background: linear-gradient(
+                             0deg,
+                             rgba(255, 255, 255, 1) 0%,
+                             rgba(255, 255, 255, 1) 25%,
+                             rgba(255, 255, 255, 1) 75%,
+                             rgba(246, 246, 246, 1) 100%
+                           );
+      }
+      /* 以下为右键菜单的CSS */
+      .contextmenu {
+       	width: 100px;
+        margin: 0;
+        border: 1px solid #ccc;
+        background: #fff;
+        z-index: 3000;
+        position: absolute;
+        list-style-type: none;
+        padding: 5px 0;
+        border-radius: 4px;
+        font-size: 14px;
+        color: #333;
+        box-shadow: 2px 2px 3px 0 rgba(0, 0, 0, 0.2);
+      }
+      .contextmenu li {
+        margin: 0;
+        padding: 0px 22px;
+      }
+      .contextmenu li:hover {
+       background: #f2f2f2;
+       cursor: pointer;
+      }
+      .contextmenu li button{
+       color: #2c3e50;
+      }
     </style>
-    <title>主入口</title>
+  <title>主入口</title>
 </head>
 <body style="height: 100%;width: 100%;position: absolute;">
 <div id="hard"></div>
@@ -59,13 +97,26 @@
 </div>
 </el-col>
 <div id="right"  style="width: calc(85% - 13px);margin-left: 10px;height:calc(100% - 5px);float: left;">
-  <el-tabs v-model="editableTabsValue" type="border-card" closable @tab-remove="removeTab">
+  <!-- 右键菜单 -->
+  <div v-show="contextMenuVisible">
+    <ul :style="{left:left+'px',top:top+'px'}" class="contextmenu">
+        <li><el-button type="text" @click="curTabReload()" size="mini">重新加载</el-button></li>
+        <li><el-button type="text" @click="closeAllTabs()" size="mini">关闭所有</el-button></li>
+        <li><el-button type="text" @click="closeOtherTabs('left')" :disabled="isDisabledCloseLeftBtnFlag" size="mini">关闭左边</el-button></li>
+        <li><el-button type="text" @click="closeOtherTabs('right')" :disabled="isDisabledCloseRightBtnFlag" size="mini">关闭右边</el-button></li>
+        <li><el-button type="text" @click="closeOtherTabs('other')" size="mini">关闭其他</el-button></li>
+    </ul>
+  </div>
+  <el-tabs v-model="editableTabsValue" type="border-card" closable @tab-remove="removeTab" @contextmenu.prevent.native="openContextMenu">
+    <el-tab-pane label="首页" name="index">
+      <iframe src="indexs.html" width="100%" height="100%" frameborder="0"></iframe>
+    </el-tab-pane>
     <el-tab-pane
       v-for="(item, index) in editableTabs"
       :key="item.name"
       :label="item.title"
       :name="item.name">
-      {{item.content}}
+      <iframe :src=item.content width="100%" height="100%" frameborder="0"></iframe>
     </el-tab-pane>
   </el-tabs>
 </div>
@@ -183,25 +234,40 @@ function  arrToTree(arr, id) {
     var app2=new Vue({
       el:'#right',
       data:{
+        contextMenuVisible:false,
+        left:0,
+        top:0,
+        isDisabledCloseLeftBtnFlag:true,
+        isDisabledCloseRightBtnFlag:true,
+        chikID:0,
         editableTabsValue: "index",
-        editableTabs: [{
-          title: '首页',
-          name: 'index',
-          content: 'Tab 1 cssssntent'
-        }],
+        editableTabs: [],
         tabIndex: 2
       },
-      // created(){
-      //   this.editableTabs=editableTabs;
-      // },
+      watch: {
+           contextMenuVisible(value) {//监听控制右键菜单显示值，当点击body时隐藏右键菜单
+              if (this.contextMenuVisible) {
+               document.body.addEventListener("click", this.closeContextMenu);
+              } 
+              else {
+               document.body.removeEventListener("click", this.closeContextMenu);
+               }
+            }
+      },
       mounted(){
-      PubSub.subscribe('addtts',(msg,suoname)=>{
+          	     // 获取dom
+	             let tab_top_dom = document.body.getElementsByClassName("el-tabs__header is-top")
+	              // 使用原生js 为单个dom绑定鼠标右击事件
+	             tab_top_dom[0].oncontextmenu = this.openContextMenu
+      },
+      mounted(){
+       PubSub.subscribe('addtts',(msg,suoname)=>{//组件间通信，将点击菜单的值追加至editableTabs(tree)
         console.log(suoname);
         let isB=false;
-        for(let i=0;i<this.editableTabs.length;i++){
+        for(let i=0;i<this.editableTabs.length;i++){//判断tree中是否已经存在需要添加的菜单
           if(this.editableTabs[i].name==suoname.name){
             isB=true;
-            this.editableTabsValue=suoname.name;
+            this.editableTabsValue=suoname.name;//设置当前选中的菜单
           }
         }
         if(isB==false){
@@ -211,15 +277,6 @@ function  arrToTree(arr, id) {
       })
     },
       methods:{
-        addTab(targetName) {
-          let newTabName = ++this.tabIndex + '';
-          this.editableTabs.push({
-            title: 'New Tab',
-            name: newTabName,
-            content: 'New Tab content'
-          });
-          this.editableTabsValue = newTabName;
-        },
         removeTab(targetName) {
           let tabs = this.editableTabs;
           let activeName = this.editableTabsValue;
@@ -233,9 +290,76 @@ function  arrToTree(arr, id) {
              }
            });
           }
+
           this.editableTabsValue = activeName;
           this.editableTabs = tabs.filter(tab => tab.name !== targetName);
-        }
+          if(this.editableTabs.length<1){
+            this.editableTabsValue = "index";
+          }
+        },
+        openContextMenu(e) {
+               e.preventDefault(); //防止默认菜单弹出
+               let obj = e.srcElement ? e.srcElement : e.target;
+               //console.log("obj_id:"+obj.id);
+             if (obj.id) {
+                  let currentContextTabId = obj.id.split("-")[1];//获取当前右键菜单的ID（key)
+                 //console.log("Tabld:"+obj.id.split("-")[1]);
+                  let curIndex = 0;
+               for(;curIndex<this.editableTabs.length;++curIndex){
+                 if(this.editableTabs[curIndex].name == currentContextTabId){
+                     break;
+                  } 
+                } //获取当前ID在菜单中的坐标
+               //console.log(this.editableTabs.length+"，index:"+curIndex);
+               this.chikID=curIndex;
+               if(curIndex<=0){
+                  this.isDisabledCloseLeftBtnFlag = true
+                  this.isDisabledCloseRightBtnFlag = false
+                }
+                else if(curIndex >= this.editableTabs.length-1){
+                        this.isDisabledCloseLeftBtnFlag = false
+                        this.isDisabledCloseRightBtnFlag = true
+                }
+                else{
+                        this.isDisabledCloseLeftBtnFlag = false
+                        this.isDisabledCloseRightBtnFlag = false
+                }
+                this.contextMenuVisible = true;
+               // this.$store.commit("saveCurContextTabId", currentContextTabId);
+                this.left = e.clientX;
+                this.top = e.clientY + 10;
+              }
+          },
+          closeContextMenu() {
+                this.contextMenuVisible = false;
+          },
+          closeAllTabs(){
+            this.editableTabs= [];
+            this.editableTabsValue="index";
+          },
+          closeOtherTabs(par){
+            let table=[];
+            let name=this.editableTabs[this.chikID].name;
+            if(par=="left"){
+              for(var i=this.chikID;i<this.editableTabs.length;i++){
+                table.push(this.editableTabs[i]);
+              }
+              this.editableTabs=table;
+              this.editableTabsValue=name;
+            }
+            if(par=="right"){
+              for(var i=0;i<=this.chikID;i++){
+                table.push(this.editableTabs[i]);
+              }
+              this.editableTabs=table;
+              this.editableTabsValue=name;
+            }
+            if(par=="other"){
+                table.push(this.editableTabs[this.chikID]);
+              this.editableTabs=table;
+              this.editableTabsValue=name;
+            }
+          }
       }
     })
 </script>
