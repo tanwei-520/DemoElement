@@ -35,7 +35,7 @@
         height: 100%;
       }
       .el-tabs__content{
-        height: calc(100% - 65px);
+        height: calc(100% - 42px);
       }
       .el-tabs--border-card>.el-tabs__content{
         padding: 0;
@@ -103,20 +103,20 @@
   <el-tree :data="data" :props="defaultProps" icon-class="el-icon-menu" accordion  node-key="pid" :filter-node-method="filterNode" @node-click="handleNodeClick" ref="tree"></el-tree> 
 </div>
 </el-col>
-<div id="right"  style="width: calc(85% - 13px);margin-left: 10px;height:calc(100% - 5px);float: left;">
+<div id="right"  style="width: calc(85% - 13px);margin-left: 10px;height:calc(100% - 2px);float: left;">
   <!-- 右键菜单 -->
   <div v-show="contextMenuVisible">
     <ul :style="{left:left+'px',top:top+'px'}" class="contextmenu">
-        <li><el-button type="text" @click="curTabReload()" size="mini">重新加载</el-button></li>
+        <li><el-button type="text" @click="closeOtherTabs('reload')" size="mini">重新加载</el-button></li>
         <li><el-button type="text" @click="closeAllTabs()" size="mini">关闭所有</el-button></li>
-        <li><el-button type="text" @click="closeOtherTabs('left')" :disabled="isDisabledCloseLeftBtnFlag" size="mini">关闭左边</el-button></li>
-        <li><el-button type="text" @click="closeOtherTabs('right')" :disabled="isDisabledCloseRightBtnFlag" size="mini">关闭右边</el-button></li>
+        <li><el-button type="text" @click="closeOtherTabs('left')" :disabled="isDisabledCloseLeftBtnFlag" size="mini">关闭左侧</el-button></li>
+        <li><el-button type="text" @click="closeOtherTabs('right')" :disabled="isDisabledCloseRightBtnFlag" size="mini">关闭右侧</el-button></li>
         <li><el-button type="text" @click="closeOtherTabs('other')" size="mini">关闭其他</el-button></li>
     </ul>
   </div>
   <el-tabs v-model="editableTabsValue" type="border-card" closable @tab-remove="removeTab" @contextmenu.prevent.native="openContextMenu">
     <el-tab-pane label="首页" name="index">
-      <iframe src="indexs.html" width="100%" height="100%" frameborder="0"></iframe>
+      <iframe src="index.html" width="100%" height="100%" frameborder="0"></iframe>
     </el-tab-pane>
     <el-tab-pane
       v-for="(item, index) in editableTabs"
@@ -175,7 +175,7 @@ function  arrToTree(arr, id) {
             }
             })
             this.data = tree // 将转换结果显示到页面
-            console.log(JSON.parse(JSON.stringify( tree )));
+            //console.log(JSON.parse(JSON.stringify( tree )));
           }
         })
         },
@@ -309,9 +309,18 @@ function  arrToTree(arr, id) {
                let obj = e.srcElement ? e.srcElement : e.target;
                //console.log("obj_id:"+obj.id);
              if (obj.id) {
-                  let currentContextTabId = obj.id.split("-")[1];//获取当前右键菜单的ID（key)
+                let currentContextTabId = obj.id.split("-")[1];//获取当前右键菜单的ID（key)
                  //console.log("Tabld:"+obj.id.split("-")[1]);
-                  let curIndex = 0;
+                if(currentContextTabId=="index"){
+                  this.isDisabledCloseLeftBtnFlag = true;
+                  this.isDisabledCloseRightBtnFlag = true;
+                  this.contextMenuVisible = true;
+                  // this.$store.commit("saveCurContextTabId", currentContextTabId);
+                  this.left = e.clientX;
+                  this.top = e.clientY + 10;
+                  return;                  
+                 }
+                 let curIndex = 0;
                for(;curIndex<this.editableTabs.length;++curIndex){
                  if(this.editableTabs[curIndex].name == currentContextTabId){
                      break;
@@ -320,16 +329,16 @@ function  arrToTree(arr, id) {
                //console.log(this.editableTabs.length+"，index:"+curIndex);
                this.chikID=curIndex;
                if(curIndex<=0){
-                  this.isDisabledCloseLeftBtnFlag = true
-                  this.isDisabledCloseRightBtnFlag = false
+                  this.isDisabledCloseLeftBtnFlag = true;
+                  this.isDisabledCloseRightBtnFlag = false;
                 }
                 else if(curIndex >= this.editableTabs.length-1){
-                        this.isDisabledCloseLeftBtnFlag = false
-                        this.isDisabledCloseRightBtnFlag = true
+                        this.isDisabledCloseLeftBtnFlag = false;
+                        this.isDisabledCloseRightBtnFlag = true;
                 }
                 else{
-                        this.isDisabledCloseLeftBtnFlag = false
-                        this.isDisabledCloseRightBtnFlag = false
+                        this.isDisabledCloseLeftBtnFlag = false;
+                        this.isDisabledCloseRightBtnFlag = false;
                 }
                 this.contextMenuVisible = true;
                // this.$store.commit("saveCurContextTabId", currentContextTabId);
@@ -347,6 +356,9 @@ function  arrToTree(arr, id) {
           closeOtherTabs(par){
             let table=[];
             let name=this.editableTabs[this.chikID].name;
+            if(par=="reload"){
+              this.editableTabsValue=name;
+            }
             if(par=="left"){
               for(var i=this.chikID;i<this.editableTabs.length;i++){
                 table.push(this.editableTabs[i]);
